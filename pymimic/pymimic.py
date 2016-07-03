@@ -51,6 +51,4 @@ class Speak():
         return self.string
 
     def __del__(self):
-        print "DELETE!!!"
-
-
+        mimic_lib.delete_wave(self.mimic_wave)
