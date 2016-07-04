@@ -3,7 +3,7 @@ from pymimic import *
 
 if __name__ == '__main__':
 
-    v = mimic_lib.mimic_voice_select('../mimic/voices/cmu_us_rms.flitevox')
+    v = Voice('../mimic/voices/cmu_us_rms.flitevox')
     s = Speak('Hello there! This is python!', v)
 
     p = PyAudio()

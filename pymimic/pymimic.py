@@ -28,9 +28,23 @@ mimic_lib.mimic_add_lang("usenglish",
                          mimic_lib.cmulex_init)
 
 
+class Voice():
+    def __init__(self, name):
+        self.pointer =  mimic_lib.mimic_voice_select(name)
+        self.name = name
+        if self.pointer == 0:
+            raise ValueError
+
+    def __str__(self):
+        return 'Voice: ' + self.name
+
+    def __del__(self):
+        mimic_lib.delete_voice(self.pointer)
+
+
 class Speak():
     def __init__(self, text, voice):
-        self.mimic_wave = mimic_lib.mimic_text_to_wave(text, voice)
+        self.mimic_wave = mimic_lib.mimic_text_to_wave(text, voice.pointer)
         self.string = None
 
     @property
