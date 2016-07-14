@@ -8,6 +8,6 @@ It is currently highly recommended that pymimic is installed in virtualenv due t
 ```sh
 git clone https://github.com/forslund/pymimic
 cd pymimic
-git submodule update
+git submodule update mimic
 ./setup.py install
 ```
