@@ -1,0 +1,6 @@
+# build related files
+build
+libpymimic.so
+
+# compiled files
+*.pyc
