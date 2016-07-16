@@ -22,26 +22,27 @@ class PyMimicBuild(build):
         configure_cmd = [
             './configure',
             '--prefix=' + build_path,
+            '--disable-voices-all',
             '--with-audio=none',
             '--enable-shared']
         make_cmd = ['make']
-        create_libpymimic_cmd = ['./build-lib.sh']
+        make_install_cmd = ['make', 'install']
 
         def configure():
             call(configure_cmd, cwd=MIMICPATH)
 
         def make():
             call(make_cmd, cwd=MIMICPATH)
-
-        def libpymimic():
-            call(create_libpymimic_cmd, cwd='./')
-
+            call(make_install_cmd, cwd=MIMICPATH)
         self.execute(configure, [], 'Configuring Mimic')
         self.execute(make, [], 'Building mimic')
-        self.execute(libpymimic, [], 'Building libpymimic.so')
 
         # copy so-files
-        target_files = ['libpymimic.so', 'pymimic/pymimic.py']
+        lib_path = build_path + '/lib/'
+        target_files = [lib_path + 'libmimic.so',
+                        lib_path + 'libmimic_lang_usenglish.so',
+                        lib_path + 'libmimic_lang_cmulex.so',
+                        'pymimic/pymimic.py']
 
         self.mkpath(self.build_lib)
         if not self.dry_run:

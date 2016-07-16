@@ -1,4 +1,4 @@
 [submodule "mimic"]
 	path = mimic
-	url = https://github.com/forslund/mimic.git
-	branch = pymimic
+	url = https://github.com/mycroftai/mimic.git
+	branch = development

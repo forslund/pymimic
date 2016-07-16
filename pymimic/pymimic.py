@@ -17,15 +17,18 @@ class _MimicWave(Structure):
         return struct.pack('%sh' % len(sample_list), *sample_list)
 
 
-mimic_lib = CDLL(dirname(abspath(__file__)) + '/libpymimic.so')
+usenglish_lib = CDLL(dirname(abspath(__file__)) + '/libmimic_lang_usenglish.so')
+cmulex_lib = CDLL(dirname(abspath(__file__)) + '/libmimic_lang_cmulex.so')
+mimic_lib = CDLL(dirname(abspath(__file__)) + '/libmimic.so')
 mimic_lib.mimic_text_to_wave.restype = POINTER(_MimicWave)
-
-mimic_lib.mimic_add_lang("eng",
-                         mimic_lib.usenglish_init,
-                         mimic_lib.cmulex_init)
-mimic_lib.mimic_add_lang("usenglish",
-                         mimic_lib.usenglish_init,
-                         mimic_lib.cmulex_init)
+eng = "eng"
+mimic_lib.mimic_add_lang(eng,
+                         usenglish_lib.usenglish_init,
+                         cmulex_lib.cmulex_init)
+usenglish = "usenglish"
+mimic_lib.mimic_add_lang(usenglish,
+                         usenglish_lib.usenglish_init,
+                         cmulex_lib.cmulex_init)
 
 
 class Voice():
