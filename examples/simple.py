@@ -1,9 +1,12 @@
 from pyaudio import PyAudio
 from pymimic import *
 
+from os.path import realpath, dirname
+
+voice_path = dirname(realpath(__file__)) + '/cmu_us_rms.flitevox'
 if __name__ == '__main__':
 
-    v = Voice('../mimic/voices/cmu_us_rms.flitevox')
+    v = Voice(voice_path)
     s = Speak('Hello there! This is python!', v)
 
     p = PyAudio()
