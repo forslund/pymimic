@@ -1,4 +1,0 @@
-[submodule "mimic"]
-	path = mimic
-	url = https://github.com/mycroftai/mimic.git
-	branch = development

@@ -1,7 +1,18 @@
 from ctypes import *
 import struct
-from os.path import dirname, abspath
 
+import os
+
+venv = os.environ.get('VIRTUAL_ENV', None)
+if venv:
+    for p in [venv + '/lib/', venv + '/usr/lib/']:
+        if os.path.isfile(p + 'libmimic.so'):
+            lib_path = p
+            break
+
+usenglish_lib = CDLL(lib_path + 'libmimic_lang_usenglish.so')
+cmulex_lib = CDLL(lib_path + 'libmimic_lang_cmulex.so')
+mimic_lib = CDLL(lib_path + 'libmimic.so')
 
 class _MimicWave(Structure):
     _fields_ = [
@@ -16,10 +27,6 @@ class _MimicWave(Structure):
         sample_list = [self.samples[i] for i in range(self.num_samples)]
         return struct.pack('%sh' % len(sample_list), *sample_list)
 
-
-usenglish_lib = CDLL(dirname(abspath(__file__)) + '/libmimic_lang_usenglish.so')
-cmulex_lib = CDLL(dirname(abspath(__file__)) + '/libmimic_lang_cmulex.so')
-mimic_lib = CDLL(dirname(abspath(__file__)) + '/libmimic.so')
 mimic_lib.mimic_text_to_wave.restype = POINTER(_MimicWave)
 eng = "eng"
 mimic_lib.mimic_add_lang(eng,
