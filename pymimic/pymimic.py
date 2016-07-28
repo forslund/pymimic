@@ -14,6 +14,39 @@ usenglish_lib = CDLL(lib_path + 'libmimic_lang_usenglish.so')
 cmulex_lib = CDLL(lib_path + 'libmimic_lang_cmulex.so')
 mimic_lib = CDLL(lib_path + 'libmimic.so')
 
+
+class _MimicVal(Structure):
+    pass
+
+
+class _MimicFeatValPair(Structure):
+    pass
+
+
+_MimicFeatValPair._fields_ = [
+    ('name', c_char_p),
+    ('val', POINTER(_MimicVal)),
+    ('next', POINTER(_MimicFeatValPair))
+    ]
+
+
+class _MimicFeature(Structure):
+    _fields_ = [
+        ('head', POINTER(_MimicFeatValPair)),
+        ('ctx', c_void_p),
+        ('owned_strings', POINTER(_MimicVal))
+    ]
+
+
+class _MimicUtterence(Structure):
+    _fields_ = [
+        ('features', POINTER(_MimicFeature)),
+        ('ffunctions', POINTER(_MimicFeature)),
+        ('relations', POINTER(_MimicFeature)),
+        ('ctx', c_void_p)
+    ]
+
+
 class _MimicWave(Structure):
     _fields_ = [
         ('type', c_char_p),
@@ -27,7 +60,14 @@ class _MimicWave(Structure):
         sample_list = [self.samples[i] for i in range(self.num_samples)]
         return struct.pack('%sh' % len(sample_list), *sample_list)
 
+
+# declare function return types
 mimic_lib.mimic_text_to_wave.restype = POINTER(_MimicWave)
+mimic_lib.utt_wave.restype = POINTER(_MimicWave)
+mimic_lib.copy_wave.restype = POINTER(_MimicWave)
+mimic_lib.new_utterance.restype = POINTER(_MimicUtterence)
+
+
 eng = "eng"
 mimic_lib.mimic_add_lang(eng,
                          usenglish_lib.usenglish_init,
@@ -38,9 +78,23 @@ mimic_lib.mimic_add_lang(usenglish,
                          cmulex_lib.cmulex_init)
 
 
+class Utterance():
+    def __init__(self, text, voice):
+        self.u = mimic_lib.new_utterance()
+        mimic_lib.set_utterence_input_text(self.u, text)
+        utt_init(self.u, voice)
+        utt_synth(self.u)
+
+    def info(self):
+        return
+
+    def __del__(self):
+        mimic_lib.delete_utterance(self.u)
+
+
 class Voice():
     def __init__(self, name):
-        self.pointer =  mimic_lib.mimic_voice_select(name)
+        self.pointer = mimic_lib.mimic_voice_select(name)
         self.name = name
         if self.pointer == 0:
             raise ValueError
@@ -54,7 +108,10 @@ class Voice():
 
 class Speak():
     def __init__(self, text, voice):
-        self.mimic_wave = mimic_lib.mimic_text_to_wave(text, voice.pointer)
+        utterance = mimic_lib.mimic_synth_text(text, voice.pointer)
+        self.mimic_wave = mimic_lib.utt_wave(utterance)
+        self.mimic_wave = mimic_lib.copy_wave(self.mimic_wave)
+        self.utterance = utterance
         self.string = None
 
     @property
