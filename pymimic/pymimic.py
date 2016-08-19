@@ -3,16 +3,51 @@ import struct
 
 import os
 
-venv = os.environ.get('VIRTUAL_ENV', None)
-if venv:
-    for p in [venv + '/lib/', venv + '/usr/lib/']:
-        if os.path.isfile(p + 'libmimic.so'):
-            lib_path = p
-            break
+lib_loaded = False
 
-usenglish_lib = CDLL(lib_path + 'libmimic_lang_usenglish.so')
-cmulex_lib = CDLL(lib_path + 'libmimic_lang_cmulex.so')
-mimic_lib = CDLL(lib_path + 'libmimic.so')
+mimic_lib = None
+usenglish_lib = None
+cmulex_lib = None
+
+eng = "eng"
+usenglish = "usenglish"
+
+venv = os.environ.get('VIRTUAL_ENV', '')
+lib_paths = ['', venv + '/lib/', venv + '/usr/lib/']
+
+
+def require_libmimic(func):
+    def inner(*args, **kwargs):
+        global usenglish_lib
+        global cmulex_lib
+        global mimic_lib
+
+        if not lib_loaded:
+            lib_path = ''
+            for p in lib_paths:
+                if os.path.isfile(p + 'libttsmimic.so'):
+                    lib_path = p
+                    break
+            print "loading from " + lib_path
+            usenglish_lib = CDLL(lib_path + 'libttsmimic_lang_usenglish.so')
+            cmulex_lib = CDLL(lib_path + 'libttsmimic_lang_cmulex.so')
+            mimic_lib = CDLL(lib_path + 'libttsmimic.so')
+
+            # declare function return types
+            mimic_lib.mimic_text_to_wave.restype = POINTER(_MimicWave)
+            mimic_lib.utt_wave.restype = POINTER(_MimicWave)
+            mimic_lib.copy_wave.restype = POINTER(_MimicWave)
+            mimic_lib.new_utterance.restype = POINTER(_MimicUtterence)
+
+            mimic_lib.mimic_add_lang(eng,
+                                     usenglish_lib.usenglish_init,
+                                     cmulex_lib.cmulex_init)
+            mimic_lib.mimic_add_lang(usenglish,
+                                     usenglish_lib.usenglish_init,
+                                     cmulex_lib.cmulex_init)
+            return func(*args, **kwargs)
+
+    return inner
 
 
 class _MimicVal(Structure):
@@ -61,24 +96,8 @@ class _MimicWave(Structure):
         return struct.pack('%sh' % len(sample_list), *sample_list)
 
 
-# declare function return types
-mimic_lib.mimic_text_to_wave.restype = POINTER(_MimicWave)
-mimic_lib.utt_wave.restype = POINTER(_MimicWave)
-mimic_lib.copy_wave.restype = POINTER(_MimicWave)
-mimic_lib.new_utterance.restype = POINTER(_MimicUtterence)
-
-
-eng = "eng"
-mimic_lib.mimic_add_lang(eng,
-                         usenglish_lib.usenglish_init,
-                         cmulex_lib.cmulex_init)
-usenglish = "usenglish"
-mimic_lib.mimic_add_lang(usenglish,
-                         usenglish_lib.usenglish_init,
-                         cmulex_lib.cmulex_init)
-
-
 class Utterance():
+    @require_libmimic
     def __init__(self, text, voice):
         self.u = mimic_lib.new_utterance()
         mimic_lib.set_utterence_input_text(self.u, text)
@@ -93,16 +112,20 @@ class Utterance():
 
 
 class Voice():
+    @require_libmimic
     def __init__(self, name):
+        print "Initing"
         self.pointer = mimic_lib.mimic_voice_select(name)
         self.name = name
         if self.pointer == 0:
             raise ValueError
+        print "Done"
 
     def __str__(self):
         return 'Voice: ' + self.name
 
     def __del__(self):
+        print "DELETING"
         mimic_lib.delete_voice(self.pointer)
 
 
