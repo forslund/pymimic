@@ -97,16 +97,16 @@ class _MimicWave(Structure):
 class Utterance():
     @require_libmimic
     def __init__(self, text, voice):
-        self.u = mimic_lib.new_utterance()
-        mimic_lib.set_utterence_input_text(self.u, text)
-        utt_init(self.u, voice)
-        utt_synth(self.u)
+        self.pointer = mimic_lib.new_utterance()
+        mimic_lib.utt_set_input_text(self.pointer, text)
+        mimic_lib.utt_init(self.pointer, voice.pointer)
+        mimic_lib.utt_synth(self.pointer)
 
     def info(self):
         return
 
     def __del__(self):
-        mimic_lib.delete_utterance(self.u)
+        mimic_lib.delete_utterance(self.pointer)
 
 
 class Voice():
@@ -130,8 +130,8 @@ class Voice():
 class Speak():
     @require_libmimic
     def __init__(self, text, voice):
-        self.utterance = mimic_lib.mimic_synth_text(text, voice.pointer)
-        self.mimic_wave = mimic_lib.utt_wave(self.utterance)
+        self.utterance = Utterance(text, voice)
+        self.mimic_wave = mimic_lib.utt_wave(self.utterance.pointer)
         self.mimic_wave = mimic_lib.copy_wave(self.mimic_wave)
         self.string = None
 
