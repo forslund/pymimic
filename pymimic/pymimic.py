@@ -3,7 +3,6 @@ import struct
 
 import os
 
-lib_loaded = False
 
 mimic_lib = None
 usenglish_lib = None
@@ -22,13 +21,12 @@ def require_libmimic(func):
         global cmulex_lib
         global mimic_lib
 
-        if not lib_loaded:
+        if mimic_lib is None:
             lib_path = ''
             for p in lib_paths:
-                if os.path.isfile(p + 'libttsmimic.so'):
-                    lib_path = p
+                if os.path.isfile(p + '/' + 'libttsmimic.so'):
+                    lib_path = p + '/'
                     break
-            print "loading from " + lib_path
             usenglish_lib = CDLL(lib_path + 'libttsmimic_lang_usenglish.so')
             cmulex_lib = CDLL(lib_path + 'libttsmimic_lang_cmulex.so')
             mimic_lib = CDLL(lib_path + 'libttsmimic.so')
@@ -45,7 +43,7 @@ def require_libmimic(func):
             mimic_lib.mimic_add_lang(usenglish,
                                      usenglish_lib.usenglish_init,
                                      cmulex_lib.cmulex_init)
-            return func(*args, **kwargs)
+        return func(*args, **kwargs)
 
     return inner
 
