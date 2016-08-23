@@ -128,11 +128,11 @@ class Voice():
 
 
 class Speak():
+    @require_libmimic
     def __init__(self, text, voice):
-        utterance = mimic_lib.mimic_synth_text(text, voice.pointer)
-        self.mimic_wave = mimic_lib.utt_wave(utterance)
+        self.utterance = mimic_lib.mimic_synth_text(text, voice.pointer)
+        self.mimic_wave = mimic_lib.utt_wave(self.utterance)
         self.mimic_wave = mimic_lib.copy_wave(self.mimic_wave)
-        self.utterance = utterance
         self.string = None
 
     @property
