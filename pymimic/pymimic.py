@@ -115,18 +115,15 @@ class Utterance():
 class Voice():
     @require_libmimic
     def __init__(self, name):
-        print("Initing")
         self.pointer = mimic_lib.mimic_voice_select(name.encode('utf-8'))
         self.name = name
         if self.pointer == 0:
             raise ValueError
-        print("Done")
 
     def __str__(self):
         return 'Voice: ' + self.name
 
     def __del__(self):
-        print("DELETING")
         mimic_lib.delete_voice(self.pointer)
 
 
