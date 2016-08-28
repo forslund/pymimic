@@ -1,3 +1,6 @@
+from __future__ import absolute_import, division, print_function, \
+                       unicode_literals
+
 from pyaudio import PyAudio
 from pymimic import *
 
@@ -12,4 +15,4 @@ if __name__ == '__main__':
     p = PyAudio()
     stream = p.open(format=2, channels=s.channels,
                     rate=s.sample_rate, output=True)
-    stream.write(str(s))
+    stream.write(s.bin())

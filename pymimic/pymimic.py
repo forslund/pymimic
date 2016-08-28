@@ -1,3 +1,6 @@
+from __future__ import absolute_import, division, print_function, \
+                       unicode_literals
+
 from ctypes import *
 import struct
 
@@ -8,8 +11,8 @@ mimic_lib = None
 usenglish_lib = None
 cmulex_lib = None
 
-eng = "eng"
-usenglish = "usenglish"
+eng = b"eng"
+usenglish = b"usenglish"
 
 venv = os.environ.get('VIRTUAL_ENV', '')
 lib_paths = ['', venv + '/lib/', venv + '/usr/lib/']
@@ -112,32 +115,32 @@ class Utterance():
 class Voice():
     @require_libmimic
     def __init__(self, name):
-        print "Initing"
-        self.pointer = mimic_lib.mimic_voice_select(name)
+        print("Initing")
+        self.pointer = mimic_lib.mimic_voice_select(name.encode('utf-8'))
         self.name = name
         if self.pointer == 0:
             raise ValueError
-        print "Done"
+        print("Done")
 
     def __str__(self):
         return 'Voice: ' + self.name
 
     def __del__(self):
-        print "DELETING"
+        print("DELETING")
         mimic_lib.delete_voice(self.pointer)
 
 
 class Speak():
     @require_libmimic
     def __init__(self, text, voice):
-        self.utterance = Utterance(text, voice)
+        self.utterance = Utterance(text.encode('utf-8'), voice)
         self.mimic_wave = mimic_lib.utt_wave(self.utterance.pointer)
         self.mimic_wave = mimic_lib.copy_wave(self.mimic_wave)
         self.string = None
 
     @property
     def sample_rate(self):
-        return self.mimic_wave.contents.sample_rate / 2
+        return self.mimic_wave.contents.sample_rate // 2
 
     @property
     def channels(self):
@@ -147,9 +150,20 @@ class Speak():
     def sample_size(self):
         return 2
 
-    def __str__(self):
+    @property
+    def num_samples(self):
+        return self.mimic_wave.contents.num_samples
+
+    @property
+    def samples(self):
+        return self.mimic_wave.contents.samples
+
+    def bin(self):
         if self.string is None:
-            self.string = str(self.mimic_wave.contents)
+            samples = cast(self.samples, POINTER(c_char))
+            self.string = b""
+            for i in range(self.num_samples * self.sample_size):
+                self.string = self.string + samples[i]
         return self.string
 
     def __del__(self):
