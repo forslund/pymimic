@@ -5,6 +5,7 @@ from pyaudio import PyAudio
 from pymimic import *
 
 from os.path import realpath, dirname
+from time import sleep
 
 voice_path = dirname(realpath(__file__)) + '/cmu_us_rms.flitevox'
 if __name__ == '__main__':
@@ -16,3 +17,4 @@ if __name__ == '__main__':
     stream = p.open(format=2, channels=s.channels,
                     rate=s.sample_rate, output=True)
     stream.write(s.bin())
+    sleep(0.5)
