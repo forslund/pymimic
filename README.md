@@ -6,7 +6,13 @@ It is currently highly recommended that pymimic is installed in virtualenv due t
 
 ## Dependencies
 
-*pymimic* requires an installation of mimic to work, the installation can either be in the virtual environment used for pymimic or a systemwide installation.
+*pymimic* requires an installation of mimic (configured with `--enable-shared`) to work. The default search paths are
+
+- System library paths
+- $VIRUTALENV/lib
+- $VIRTUALENV/usr/lib
+
+Search order can be changed by modifying `pymimic.lib_paths`.
 
 ### Get mimic
 

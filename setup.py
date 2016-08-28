@@ -4,7 +4,7 @@
 from distutils.core import setup
 
 setup(name='pymimic',
-      version='0.1dev',
+      version='0.1.1dev',
       packages = ['pymimic',],
       description='Python wrapper for mimic',
       author='Åke Forslund',
