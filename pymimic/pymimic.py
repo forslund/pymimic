@@ -115,7 +115,7 @@ class Utterance():
 class Voice():
     @require_libmimic
     def __init__(self, name):
-        self.pointer = mimic_lib.mimic_voice_select(name.encode('utf-8'))
+        self.pointer = mimic_lib.mimic_voice_load(name.encode('utf-8'))
         self.name = name
         if self.pointer == 0:
             raise ValueError
