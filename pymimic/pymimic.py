@@ -17,12 +17,14 @@ usenglish = b"usenglish"
 venv = os.environ.get('VIRTUAL_ENV', '')
 lib_paths = ['', venv + '/lib/', venv + '/usr/lib/']
 
+feature_setter = {}
 
 def require_libmimic(func):
     def inner(*args, **kwargs):
         global usenglish_lib
         global cmulex_lib
         global mimic_lib
+        global feature_setter
 
         if mimic_lib is None:
             lib_path = ''
@@ -39,6 +41,16 @@ def require_libmimic(func):
             mimic_lib.utt_wave.restype = POINTER(_MimicWave)
             mimic_lib.copy_wave.restype = POINTER(_MimicWave)
             mimic_lib.new_utterance.restype = POINTER(_MimicUtterence)
+            mimic_lib.mimic_voice_load.restype = POINTER(_MimicVoice)
+            mimic_lib.item_feat_float.restype = c_float
+            mimic_lib.item_feat_string.restype = c_char_p
+            mimic_lib.feat_set_float.argtypes = [c_int, c_char_p, c_float]
+
+            feature_setter = {
+                float: mimic_lib.feat_set_float,
+                str: mimic_lib.feat_set_string,
+                int: mimic_lib.feat_set_int
+            }
 
             mimic_lib.mimic_add_lang(eng,
                                      usenglish_lib.usenglish_init,
@@ -83,6 +95,14 @@ class _MimicUtterence(Structure):
     ]
 
 
+class _MimicVoice(Structure):
+    _fields_ = [
+        ('name', c_char_p),
+        ('features', POINTER(_MimicFeature)),
+        ('ffunctions', POINTER(_MimicFeature))
+    ]
+
+
 class _MimicWave(Structure):
     _fields_ = [
         ('type', c_char_p),
@@ -97,28 +117,76 @@ class _MimicWave(Structure):
         return struct.pack('%sh' % len(sample_list), *sample_list)
 
 
+class UtterancePhones():
+    @require_libmimic
+    def __init__(self, utterance):
+        self.u = utterance
+
+    def __iter__(self):
+        self.current = mimic_lib.relation_head(
+            mimic_lib.utt_relation(self.u, b'Segment'))
+        return self
+
+    def next(self):
+        return self.__next__()
+
+    def __next__(self):
+        if self.current == 0:
+            raise StopIteration
+
+        string = mimic_lib.item_feat_string(self.current, b'name')
+        endtime = mimic_lib.item_feat_float(self.current, b'end')
+        self.current = mimic_lib.item_next(self.current)
+        return (string, endtime)
+
+
 class Utterance():
     @require_libmimic
-    def __init__(self, text, voice):
+    def __init__(self, text, voice, features=[]):
         self.pointer = mimic_lib.new_utterance()
         mimic_lib.utt_set_input_text(self.pointer, text)
         mimic_lib.utt_init(self.pointer, voice.pointer)
         mimic_lib.utt_synth(self.pointer)
+        self.set_features(features)
 
-    def info(self):
-        return
+    def set_features(self, features):
+        self.features = mimic_lib.new_features()
+        for name, val in features:
+            feature_setter[type(val)](self.features, name, val)
+        mimic_lib.feat_copy_into(self.features,
+                                 self.pointer.contents.features)
+
+    @property
+    def features(self):
+        return self.pointer.contents.features
+
+    @property
+    def phonemes(self):
+        u = UtterancePhones(self.pointer)
+        return [phone for phone in u]
 
     def __del__(self):
         mimic_lib.delete_utterance(self.pointer)
 
-
 class Voice():
     @require_libmimic
-    def __init__(self, name):
+    def __init__(self, name, features=[]):
         self.pointer = mimic_lib.mimic_voice_load(name.encode('utf-8'))
         self.name = name
         if self.pointer == 0:
             raise ValueError
+        self.set_features(features)
+
+    def set_features(self, features):
+        self.features = mimic_lib.new_features()
+        for name, val in features:
+            feature_setter[type(val)](self.features, name, val)
+        mimic_lib.feat_copy_into(self.features,
+                                 self.pointer.contents.features)
+
+    @property
+    def features(self):
+        return self.pointer.contents.features
 
     def __str__(self):
         return 'Voice: ' + self.name
@@ -135,6 +203,9 @@ class Speak():
         self.mimic_wave = mimic_lib.copy_wave(self.mimic_wave)
         self.string = None
 
+    @property
+    def phonemes(self):
+        return self.utterance.phonemes
     @property
     def sample_rate(self):
         return self.mimic_wave.contents.sample_rate // 2
