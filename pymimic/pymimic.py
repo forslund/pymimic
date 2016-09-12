@@ -40,12 +40,19 @@ def require_libmimic(func):
             mimic_lib.mimic_text_to_wave.restype = POINTER(_MimicWave)
             mimic_lib.utt_wave.restype = POINTER(_MimicWave)
             mimic_lib.copy_wave.restype = POINTER(_MimicWave)
-            mimic_lib.new_utterance.restype = POINTER(_MimicUtterence)
+            mimic_lib.new_utterance.restype = POINTER(_MimicUtterance)
             mimic_lib.mimic_voice_load.restype = POINTER(_MimicVoice)
             mimic_lib.item_feat_float.restype = c_float
+            mimic_lib.item_feat_float.argtypes = [c_void_p, c_char_p]
             mimic_lib.item_feat_string.restype = c_char_p
-            mimic_lib.feat_set_float.argtypes = [c_int, c_char_p, c_float]
-
+            mimic_lib.item_feat_string.argtypes = [c_void_p, c_char_p]
+            mimic_lib.feat_set_float.argtypes = [POINTER(_MimicFeature), c_char_p, c_float]
+            mimic_lib.utt_relation.restype = POINTER(_MimicRelation)
+            mimic_lib.relation_head.restype = c_void_p
+            mimic_lib.relation_head.argtypes = [POINTER(_MimicRelation)]
+            mimic_lib.item_next.restype = c_void_p
+            mimic_lib.item_next.argtypes = [c_void_p]
+            mimic_lib.new_features.restype = POINTER(_MimicFeature)
             feature_setter = {
                 float: mimic_lib.feat_set_float,
                 str: mimic_lib.feat_set_string,
@@ -86,7 +93,7 @@ class _MimicFeature(Structure):
     ]
 
 
-class _MimicUtterence(Structure):
+class _MimicUtterance(Structure):
     _fields_ = [
         ('features', POINTER(_MimicFeature)),
         ('ffunctions', POINTER(_MimicFeature)),
@@ -117,21 +124,30 @@ class _MimicWave(Structure):
         return struct.pack('%sh' % len(sample_list), *sample_list)
 
 
+class _MimicRelation(Structure):
+    _fields_ = [
+        ('features', POINTER(_MimicVal)),
+        ('utterance', POINTER(_MimicUtterance)),
+        ('head', c_void_p),
+        ('tail', c_void_p)
+    ]
+
 class UtterancePhones():
     @require_libmimic
     def __init__(self, utterance):
         self.u = utterance
 
     def __iter__(self):
-        self.current = mimic_lib.relation_head(
-            mimic_lib.utt_relation(self.u, b'Segment'))
+        rel = mimic_lib.utt_relation(self.u, b'Segment')
+        if rel != 0:
+            self.current = mimic_lib.relation_head(rel)
         return self
 
     def next(self):
         return self.__next__()
 
     def __next__(self):
-        if self.current == 0:
+        if not self.current:
             raise StopIteration
 
         string = mimic_lib.item_feat_string(self.current, b'name')
