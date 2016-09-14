@@ -167,11 +167,10 @@ class Utterance():
         self.set_features(features)
 
     def set_features(self, features):
-        self.features = mimic_lib.new_features()
+        f = mimic_lib.new_features()
         for name, val in features:
-            feature_setter[type(val)](self.features, name, val)
-        mimic_lib.feat_copy_into(self.features,
-                                 self.pointer.contents.features)
+            feature_setter[type(val)](f, name, val)
+        mimic_lib.feat_copy_into(f, self.pointer.contents.features)
 
     @property
     def features(self):
@@ -195,11 +194,10 @@ class Voice():
         self.set_features(features)
 
     def set_features(self, features):
-        self.features = mimic_lib.new_features()
+        f = mimic_lib.new_features()
         for name, val in features:
-            feature_setter[type(val)](self.features, name, val)
-        mimic_lib.feat_copy_into(self.features,
-                                 self.pointer.contents.features)
+            feature_setter[type(val)](f, name, val)
+        mimic_lib.feat_copy_into(f, self.pointer.contents.features)
 
     @property
     def features(self):
