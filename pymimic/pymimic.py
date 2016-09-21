@@ -53,7 +53,7 @@ def require_libmimic(func):
             mimic_lib.item_next.restype = c_void_p
             mimic_lib.item_next.argtypes = [c_void_p]
             mimic_lib.new_features.restype = POINTER(_MimicFeature)
-            mimic_lib.play_wave.argtypes = [POINTER(_MimicWave)]
+            mimic_lib.mimic_play_wave.argtypes = [POINTER(_MimicWave)]
             feature_setter = {
                 float: mimic_lib.feat_set_float,
                 str: mimic_lib.feat_set_string,
@@ -250,7 +250,7 @@ class Speak():
         return self.string
 
     def play(self):
-        mimic_lib.play_wave(self.mimic_wave)
+        mimic_lib.mimic_play_wave(self.mimic_wave)
 
     def __del__(self):
         mimic_lib.delete_wave(self.mimic_wave)
