@@ -215,7 +215,6 @@ class Speak():
     def __init__(self, text, voice):
         self.utterance = Utterance(text.encode('utf-8'), voice)
         self.mimic_wave = mimic_lib.utt_wave(self.utterance.pointer)
-        self.mimic_wave = mimic_lib.copy_wave(self.mimic_wave)
         self.string = None
 
     @property
@@ -251,6 +250,3 @@ class Speak():
 
     def play(self):
         mimic_lib.mimic_play_wave(self.mimic_wave)
-
-    def __del__(self):
-        mimic_lib.delete_wave(self.mimic_wave)
