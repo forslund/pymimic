@@ -222,7 +222,10 @@ class Speak():
         return self.utterance.phonemes
     @property
     def sample_rate(self):
-        return self.mimic_wave.contents.sample_rate // 2
+        """
+            Sample rate in samples per second
+        """
+        return self.mimic_wave.contents.sample_rate // self.sample_size
 
     @property
     def channels(self):
