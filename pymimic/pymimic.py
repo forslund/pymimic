@@ -216,10 +216,21 @@ class Speak():
         self.utterance = Utterance(text.encode('utf-8'), voice)
         self.mimic_wave = mimic_lib.utt_wave(self.utterance.pointer)
         self.string = None
+        self._char_pointer = None
 
     @property
     def phonemes(self):
         return self.utterance.phonemes
+
+    @property
+    def char_pointer(self):
+        if not self._char_pointer:
+            self._char_pointer = cast(self.samples, POINTER(c_char))
+        return self._char_pointer
+
+    def __getslice__(self, start, stop):
+        return self.char_pointer[start:stop]
+
     @property
     def sample_rate(self):
         """
