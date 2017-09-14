@@ -1,0 +1,2 @@
+include pymimic/train_lex_lts/data/huff_table
+include pymimic/train_lex_lts/data/make_lex.scm

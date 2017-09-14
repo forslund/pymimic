@@ -66,6 +66,7 @@ LEX_PRUNED_COMPILED="${PRUNEDIR}/${LEX_LTS_PREFIX}_pruned_lex_comp.scm"
 RESULT_DIR="$BUILDDIR/"
 
 if [ $# = 0 ]; then
+   $0 setup  || exit 1
    $0 lts  || exit 1
    $0 lex  || exit 1
    $0 compresslex || exit 1
@@ -74,10 +75,14 @@ if [ $# = 0 ]; then
    exit 0
 fi
 
+if [ "$1" = "setup" ]; then
+  ${PYTHON3} -m pymimic.train_lex_lts.copy_files --builddir "${BUILDDIR}" || exit 1
+fi
+
 if [ "$1" = "lts" ]; then
   echo "Train LTS rules: " `date -R`
   ## Requires $WAGON and $WFST_BUILD
-  mimic_lts_train.py --allowables "${ALLOWABLES}" --lexicon "${LEX_INPUT}" ${LEX_INPUT_FMT} --lang-prefix "${LEX_LTS_PREFIX}" || exit 1
+  ${PYTHON3} -m pymimic.train_lex_lts.lts_train --allowables "${ALLOWABLES}" --lexicon "${LEX_INPUT}" ${LEX_INPUT_FMT} --lang-prefix "${LEX_LTS_PREFIX}" || exit 1
 fi
 
 if [ "$1" = "lex" ]; then
@@ -92,24 +97,25 @@ if [ "$1" = "lex" ]; then
              --lts_rules "${LEX_LTS_PREFIX}_lts_rules.scm" --output "${LEX_PRUNED}" || exit 1
   echo "LEX: Compile pruned lexicon started at" `date -R`
   cp "${PHONESET_SCM}" "${BUILDDIR}/${LEX_LTS_PREFIX}_phoneset.scm"
-  cp `which "make_lex.scm"` "${BUILDDIR}/make_lex.scm"
   export LC_ALL=C
   export LANG=C
   $FESTIVAL --heap 10000000 -b '(begin (load "'"${LEX_DEF_SCM}"'") (lex.compile "'"${LEX_PRUNED}"'" "'"${LEX_PRUNED_COMPILED}"'"))' || exit 1
   echo "lex/lextoC started at" `date -R`
-  $FESTIVAL --heap 10000000 -b "${SRCDIR}/make_lex.scm" "${PHONESET_SCM}" '(lextoC "'"${LEX_LTS_PREFIX}"'" "'"${LEX_PRUNED_COMPILED}"'" "'"${LEX_LTS_PREFIX}_c"'")' || exit 1
+  $FESTIVAL --heap 10000000 -b "make_lex.scm" "${PHONESET_SCM}" '(lextoC "'"${LEX_LTS_PREFIX}"'" "'"${LEX_PRUNED_COMPILED}"'" "'"${LEX_LTS_PREFIX}_c"'")' || exit 1
 fi
 
 if [ "$1" = "compresslex" ]; then
 echo "compresslex started at" `date -R`
 # Compress the entries and phone strings by finding best ngrams 
 ( cd "${LEX_LTS_PREFIX}_c";
-  cp `which "make_lex.scm"` "make_lex.scm"
+  cp "../make_lex.scm" "make_lex.scm"
+  cp "../huff_table" "huff_table"
+  chmod +x huff_table
    # uses $FESTIVAL and make_lex.scm
   export LC_ALL=C
   export LANG=C
-  mimic_huff_table phones ${LEX_LTS_PREFIX}_lex_data ${LEX_LTS_PREFIX}_lex_phones_huff_table.c || exit 1
-  mimic_huff_table entries ${LEX_LTS_PREFIX}_lex_data ${LEX_LTS_PREFIX}_lex_entries_huff_table.c || exit 1
+  ./huff_table phones ${LEX_LTS_PREFIX}_lex_data ${LEX_LTS_PREFIX}_lex_phones_huff_table.c || exit 1
+  ./huff_table entries ${LEX_LTS_PREFIX}_lex_data ${LEX_LTS_PREFIX}_lex_entries_huff_table.c || exit 1
   paste huff.entries.compressed huff.phones.compressed huff.tmp.corpus | 
   tr -d " " |
   awk 'BEGIN {pcount = 1;

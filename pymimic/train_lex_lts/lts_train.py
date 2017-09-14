@@ -7,10 +7,10 @@ import argparse
 
 from distutils.spawn import find_executable
 
-from pymimic.train_lex_lts.train_lts import (read_lexicon, filter_lexicon, write_lex,
-                                    cummulate_pairs,
-                                    normalise_table, save_pl_table, align_data,
-                                    save_lex_align, build_feat_file)
+from pymimic.train_lex_lts.filter_align import (read_lexicon, filter_lexicon, write_lex,
+                                                cummulate_pairs, normalise_table,
+                                                save_pl_table, align_data,
+                                                save_lex_align, build_feat_file)
 
 from pymimic.train_lex_lts.build_lts import build_lts, merge_models, write_lts, load_and_test_lts
 from pymimic.train_lex_lts.lts_to_c import lts_to_c
