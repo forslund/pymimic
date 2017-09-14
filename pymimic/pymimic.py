@@ -2,39 +2,42 @@ from __future__ import absolute_import, division, print_function, \
                        unicode_literals
 
 from ctypes import *
+from ctypes.util import find_library
 import struct
 
 import os
 
 
 mimic_lib = None
-usenglish_lib = None
-cmulex_lib = None
-
-eng = b"eng"
-usenglish = b"usenglish"
 
 venv = os.environ.get('VIRTUAL_ENV', '')
-lib_paths = ['', venv + '/lib/', venv + '/usr/lib/']
+lib_paths = ['.', venv + '/lib/', venv + '/usr/lib/']
 
 feature_setter = {}
 
+def _find_shared_library(libname, lib_paths):
+    # We first search using the standard find_library
+    # As fallback, we look in custom lib_paths.
+    mimic_lib_fn = find_library(libname)
+    if mimic_lib_fn is not None:
+        return mimic_lib_fn
+    for p in lib_paths:
+        candidate = os.path.join(p, 'lib' + libname + '.so')
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
 def require_libmimic(func):
     def inner(*args, **kwargs):
-        global usenglish_lib
-        global cmulex_lib
         global mimic_lib
         global feature_setter
 
         if mimic_lib is None:
-            lib_path = ''
-            for p in lib_paths:
-                if os.path.isfile(p + '/' + 'libttsmimic.so'):
-                    lib_path = p + '/'
-                    break
-            usenglish_lib = CDLL(lib_path + 'libttsmimic_lang_usenglish.so')
-            cmulex_lib = CDLL(lib_path + 'libttsmimic_lang_cmulex.so')
-            mimic_lib = CDLL(lib_path + 'libttsmimic.so')
+            mimic_lib_fn = _find_shared_library('ttsmimiccore', lib_paths)
+            if mimic_lib_fn is None:
+                raise OSError("File libttsmimiccore.so not found on paths", lib_paths)
+            mimic_lib = CDLL(mimic_lib_fn)
 
             # declare function return types
             mimic_lib.mimic_text_to_wave.restype = POINTER(_MimicWave)
@@ -42,6 +45,7 @@ def require_libmimic(func):
             mimic_lib.copy_wave.restype = POINTER(_MimicWave)
             mimic_lib.new_utterance.restype = POINTER(_MimicUtterance)
             mimic_lib.mimic_voice_load.restype = POINTER(_MimicVoice)
+            mimic_lib.mimic_voice_select.restype = POINTER(_MimicVoice)
             mimic_lib.item_feat_float.restype = c_float
             mimic_lib.item_feat_float.argtypes = [c_void_p, c_char_p]
             mimic_lib.item_feat_string.restype = c_char_p
@@ -62,14 +66,8 @@ def require_libmimic(func):
                 int: mimic_lib.feat_set_int
             }
 
-            mimic_lib.mimic_add_lang(eng,
-                                     usenglish_lib.usenglish_init,
-                                     cmulex_lib.cmulex_init)
-            mimic_lib.mimic_add_lang(usenglish,
-                                     usenglish_lib.usenglish_init,
-                                     cmulex_lib.cmulex_init)
+            mimic_lib.mimic_core_init()
         return func(*args, **kwargs)
-
     return inner
 
 
@@ -189,10 +187,10 @@ class Utterance():
 class Voice():
     @require_libmimic
     def __init__(self, name, features=[]):
-        self.pointer = mimic_lib.mimic_voice_load(name.encode('utf-8'))
+        self.pointer = mimic_lib.mimic_voice_select(name.encode('utf-8'))
         self.name = name
         if self.pointer == 0:
-            raise ValueError
+            raise ValueError("Voice with name {} could not be loaded".format(name))
         self.set_features(features)
 
     def set_features(self, features):
@@ -269,3 +267,4 @@ class Speak():
 
     def write(self, file_path):
         mimic_lib.cst_wave_save_riff(self.mimic_wave, file_path)
+
