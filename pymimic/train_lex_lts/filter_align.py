@@ -205,11 +205,18 @@ def find_best_alignment(phones, letters, pl_table,
     if path is None:
         path = []
     if fba is None:
-        fba = dict(path=[], score=0)
+        fba = dict(path=[], score=0, score_epsilon=0)
     if letters is None or len(letters) == 0:
         if score > fba['score']:
             fba['score'] = score
             fba['path'] = path[::-1]
+            fba['score_epsilon'] = sum([i for (i, (ph, let)) in enumerate(fba['path']) if ph == "_epsilon_"])
+        elif score == fba['score']:
+            score_epsilon_current = sum([i for (i, (ph, let)) in enumerate(path[::-1]) if ph == "_epsilon_"])
+            if score_epsilon_current > fba['score_epsilon']:
+                fba['score'] = score
+                fba['path'] = path[::-1]
+                fba['score_epsilon'] = score_epsilon_current
         return fba
     if valid_pair('_epsilon_', letters[0], pl_table):
         fba = find_best_alignment(phones, letters[1:], pl_table,
