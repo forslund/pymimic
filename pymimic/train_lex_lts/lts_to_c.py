@@ -172,7 +172,7 @@ def _parse_wfst(wfst_file, state_index, phone_table):
             output.append((feat, val, -1, -1))
     return (state_index, phone_table, output)
 
-def _create_c_vec(length, positions_values, missing = "0"):
+def _create_c_vec_values(length, positions_values, missing = "0"):
     vec = length*[missing]
     for (position, value) in positions_values:
         vec[position] = str(value)
@@ -208,7 +208,7 @@ def _extract_info_from_wfst(all_letters, wfstdir):
 def convert_states_to_rules(models, lts_prefix):
     model_rules_c = []
     # Write the rules: (the +1 rule is for the zero at the end)
-    model_rules_c.append("cst_lts_rule {}_lts_model[{}] = ".format(lts_prefix, len(models) + 1))
+    model_rules_c.append("const cst_lts_rule {}_lts_model[{}] = ".format(lts_prefix, len(models) + 1))
     model_rules_c.append("{")
     all_rules = [_rule_to_struct(x) for x in models]
     rules_c_code = "  " + ",\n  ".join(all_rules)
@@ -221,6 +221,9 @@ def convert_states_to_rules(models, lts_prefix):
     model_rules_c.append("")
     return model_rules_c
 
+def _create_c_vec(vartype, varname, varlength, positions_values, missing):
+    values = ", ".join(_create_c_vec_values(varlength, positions_values, missing = missing))
+    return vartype + " " + varname + "[" + str(varlength) + "] = {" + values + "};"
 
 def create_letter_index_map(all_letters, rule_index, lts_prefix):
     # The letter_table (bytes to start indices)
@@ -236,47 +239,92 @@ def create_letter_index_map(all_letters, rule_index, lts_prefix):
             letters_by_bytes[2][lab[0]-224][lab[1]-128][lab[2]-128] = rule_index[let]
         elif len(lab) == 4:
             letters_by_bytes[3][lab[0]-240][lab[1]-128][lab[2]-128][lab[3]-128] = rule_index[let]
-    vecdef = "const {}_lts_letter_index_v".format(lts_prefix)
+    vecdef = "{}_lts_letter_index_v".format(lts_prefix)
     MAP_UNICODE_TO_INT_NOT_FOUND = "-1"
     FREEABLE = "0"
     map_unicode_to_int_fields = ["NULL", "NULL", "NULL", "NULL", MAP_UNICODE_TO_INT_NOT_FOUND, FREEABLE]
     for i, letters_of_n_bytes in enumerate(letters_by_bytes):
         if len(letters_of_n_bytes) > 0:
             if i == 0:
-                values = ", ".join(_create_c_vec(128, letters_of_n_bytes.items(), missing = "0"))
-                letter_idx_c.append("int32_t " + vecdef + str(i+1) + "[128] = {" + values + "};")
-                map_unicode_to_int_fields[0] = "(int32_t *) {}_lts_letter_index_v{}".format(lts_prefix, i+1)
+                vec_name = vecdef + str(i+1)
+                letter_idx_c.append(_create_c_vec("const int32_t",
+                                                  vec_name,
+                                                  128,
+                                                  letters_of_n_bytes.items(),
+                                                  missing = "0"))
+                map_unicode_to_int_fields[0] = "(int32_t *) " + vec_name
             elif i == 1:
                 for (key1, nested_dict1) in letters_of_n_bytes.items():
-                    values1 = _create_c_vec(64, nested_dict1.items(), missing = "0")
-                    letters_of_n_bytes[key1] = "{\n" + ", ".join(values1) + "}\n"
-                values = ", ".join(_create_c_vec(32, letters_of_n_bytes.items(), missing = "NULL"))
-                letter_idx_c.append("int32_t " + "*" + vecdef + str(i+1) + "[] = {" + values + "};")
-                map_unicode_to_int_fields[i] = "(int32_t **) {}_lts_letter_index_v{}".format(lts_prefix, i+1)
+                    vec_name = vecdef + str(i+1) + "_" + str(key1)
+                    letter_idx_c.append(_create_c_vec("const int32_t",
+                                                      vec_name,
+                                                      64,
+                                                      nested_dict1.items(),
+                                                      missing = "0"))
+                    letters_of_n_bytes[key1] = vec_name
+                vec_name = vecdef + str(i+1)
+                letter_idx_c.append(_create_c_vec("const int32_t *",
+                                                  vec_name,
+                                                  32,
+                                                  letters_of_n_bytes.items(),
+                                                  missing = "NULL"))
+                map_unicode_to_int_fields[i] = "(int32_t **) " + vec_name
             elif i == 2:
                 for (key1, nested_dict1) in letters_of_n_bytes.items():
                     for (key2, nested_dict2) in nested_dict1.items():
-                        values1 = _create_c_vec(64, nested_dict2.items(), missing = "0")
-                        nested_dict1[key2] = "{\n" + ", ".join(values1) + "}\n"
-                    values1 = _create_c_vec(64, nested_dict1.items(), missing = "NULL")
-                    letters_of_n_bytes[key1] = "{\n" + ", ".join(values1) + "}\n"
-                values = ", ".join(_create_c_vec(16, letters_of_n_bytes.items(), missing = "NULL"))
-                letter_idx_c.append("int32_t " + "***" + vecdef + str(i+1) + " = {" + values + "};")
-                map_unicode_to_int_fields[i] = "(int32_t *** ) {}_lts_letter_index_v{}".format(lts_prefix, i+1)
+                        vec_name = vecdef + str(i+1) + "_" + str(key1) + "_" + str(key2)
+                        letter_idx_c.append(_create_c_vec("const int32_t",
+                                                          vec_name,
+                                                          64,
+                                                          nested_dict2.items(),
+                                                          missing = "0"))
+                        nested_dict1[key2] = vec_name
+                    vec_name = vecdef + str(i+1) + "_" + str(key1)
+                    letter_idx_c.append(_create_c_vec("const int32_t *",
+                                                      vec_name,
+                                                      64,
+                                                      nested_dict1.items(),
+                                                      missing = "NULL"))
+                    letters_of_n_bytes[key1] = vec_name
+                vec_name = vecdef + str(i+1)
+                letter_idx_c.append(_create_c_vec("const int32_t **",
+                                                  vec_name,
+                                                  16,
+                                                  letters_of_n_bytes.items(),
+                                                  missing = "NULL"))
+                map_unicode_to_int_fields[i] = "(int32_t ***) " + vec_name
             elif i == 3:
                 for (key1, nested_dict1) in letters_of_n_bytes.items():
                     for (key2, nested_dict2) in nested_dict1.items():
                         for (key3, nested_dict3) in nested_dict2.items():
-                            values1 = _create_c_vec(64, nested_dict3.items(), missing = "0")
-                            nested_dict2[key3] = "{\n" + ", ".join(values1) + "}\n"
-                        values1 = _create_c_vec(64, nested_dict2.items(), missing = "NULL")
-                        nested_dict1[key2] = "{\n" + ", ".join(values1) + "}\n"
-                    values1 = _create_c_vec(64, nested_dict1.items(), missing = "NULL")
-                    letters_of_n_bytes[key1] = "{\n" + ", ".join(values1) + "}\n"
-                values = ", ".join(_create_c_vec(8, letters_of_n_bytes.items(), missing = "NULL"))
-                letter_idx_c.append("int32_t " + "****" + vecdef + str(i+1) + " = {" + values + "};")
-                map_unicode_to_int_fields[i] = "(int32_t ****) {}_lts_letter_index_v{}".format(lts_prefix, i+1)
-    letter_idx_c.append("")
+                            vec_name = vecdef + str(i+1) + "_" + str(key1) + "_" + str(key2) + "_" + str(key3)
+                            letter_idx_c.append(_create_c_vec("const int32_t",
+                                                              vec_name,
+                                                              64,
+                                                              nested_dict3.items(),
+                                                              missing = "0"))
+                            nested_dict2[key3] = vec_name
+                        vec_name = vecdef + str(i+1) + "_" + str(key1) + "_" + str(key2)
+                        letter_idx_c.append(_create_c_vec("const int32_t *",
+                                                          vec_name,
+                                                          64,
+                                                          nested_dict2.items(),
+                                                          missing = "NULL"))
+                        nested_dict1[key2] = vec_name
+                    vec_name = vecdef + str(i+1) + "_" + str(key1)
+                    letter_idx_c.append(_create_c_vec("const int32_t **",
+                                                      vec_name,
+                                                      64,
+                                                      nested_dict1.items(),
+                                                      missing = "NULL"))
+                    letters_of_n_bytes[key1] = vec_name
+                vec_name = vecdef + str(i+1)
+                letter_idx_c.append(_create_c_vec("const int32_t ***",
+                                                  vec_name,
+                                                  8,
+                                                  letters_of_n_bytes.items(),
+                                                  missing = "NULL"))
+                map_unicode_to_int_fields[i] = "(int32_t ****) " + vec_name
     letter_idx_c.append("")
     letter_idx_c.append("const map_unicode_to_int {}_lts_letter_index = ".format(lts_prefix) + "{")
     letter_idx_c.append(", ".join(map_unicode_to_int_fields) + "};")
@@ -324,3 +372,4 @@ def lts_to_c(name, lts_rules, rgdir, wfstdir, wfst_build, c_dir):
     lts_to_wfst(lts_rules, rgdir, wfstdir, wfst_build)
     all_letters = sorted([x[0] for x in lts_rules])
     lts_regex_to_c(name, all_letters, wfstdir, c_dir)
+
